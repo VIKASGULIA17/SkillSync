@@ -139,3 +139,35 @@ export async function getMe() {
 export async function getIsAdmin(){
   return request('/auth/is_admin')
 }
+
+export async function getIsUser() {
+  return request('/auth/is_user');
+}
+
+export async function getAllUsers() {
+  return request('/auth/get_all_users');
+}
+
+export async function getAllAdmins() {
+  return request('/auth/get_all_admins');
+}
+
+export async function getUserProfile() {
+  return request('/user_profile');
+}
+
+export async function updatePersonalInfo(updates) {
+  return request('/user_profile/personalInfo/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function updateSkillSet(skillMatrix) {
+  return request('/user_profile/skill_set/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skill_matrix: skillMatrix }),
+  });
+}

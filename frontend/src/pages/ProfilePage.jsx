@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import ErrorBanner from '../components/ErrorBanner.jsx';
+import { getUserProfile, updatePersonalInfo, updateSkillSet } from '../api/client.js';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -10,7 +11,8 @@ export default function ProfilePage() {
   // States
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
-  
+  const [loading, setLoading] = useState(true);
+
   // Profile field states
   const [fullName, setFullName] = useState('');
   const [headline, setHeadline] = useState('');
@@ -19,14 +21,14 @@ export default function ProfilePage() {
   const [avatar, setAvatar] = useState(null);
   const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState('');
-  
+
   // Social links
   const [github, setGithub] = useState('');
   const [linkedin, setLinkedin] = useState('');
   const [portfolio, setPortfolio] = useState('');
 
   // Stats & Saved Jobs
-  const [stats, setStats] = useState({ avgScore: 78, resumesUploaded: 3, savedJobsCount: 4 });
+  const [stats, setStats] = useState({ avgScore: 0, resumesUploaded: 0, savedJobsCount: 0 });
   const [savedJobs, setSavedJobs] = useState([]);
 
   // Resume Upload Simulation State
@@ -34,78 +36,63 @@ export default function ProfilePage() {
   const [parseStep, setParseStep] = useState('');
   const [parsedFileName, setParsedFileName] = useState('');
 
-  // Load profile data from localStorage or fallback to defaults
+  // Load profile data from backend API
   useEffect(() => {
     if (!user) return;
 
-    const storageKey = `skillsync_profile_${user.email || 'default'}`;
-    const cachedData = localStorage.getItem(storageKey);
-
-    const defaultSkills = ["React", "JavaScript", "TypeScript", "Tailwind CSS", "HTML5", "CSS3", "Node.js", "Git"];
-    const defaultJobs = [
-      { id: 1, title: "Frontend Engineer", company: "Razorpay", location: "Bengaluru (Remote)", salary: "₹8L - ₹12L / year", url: "https://razorpay.com", category: "React Developer" },
-      { id: 2, title: "React Developer", company: "Swiggy", location: "Bengaluru", salary: "₹12L - ₹18L / year", url: "https://swiggy.com", category: "React Developer" },
-      { id: 3, title: "Full Stack Intern", company: "Zomato", location: "Gurugram", salary: "₹30,000 / month", url: "https://zomato.com", category: "Full Stack Developer" },
-      { id: 4, title: "UI/UX Developer", company: "Paytm", location: "Noida", salary: "₹6L - ₹9L / year", url: "https://paytm.com", category: "Frontend Developer" }
-    ];
-
-    if (cachedData) {
+    const loadProfile = async () => {
       try {
-        const parsed = JSON.parse(cachedData);
-        setFullName(parsed.fullName || user.full_name || '');
-        setHeadline(parsed.headline || 'Full Stack Engineer');
-        setLocation(parsed.location || 'Bengaluru, India');
-        setBio(parsed.bio || 'Passionate developer looking for new opportunities.');
-        setAvatar(parsed.avatar || null);
-        setSkills(parsed.skills || defaultSkills);
-        setGithub(parsed.github || '');
-        setLinkedin(parsed.linkedin || '');
-        setPortfolio(parsed.portfolio || '');
-        setStats(parsed.stats || { avgScore: 78, resumesUploaded: 3, savedJobsCount: 4 });
-        setSavedJobs(parsed.savedJobs || defaultJobs);
-      } catch (e) {
-        console.error("Failed to parse cached profile data", e);
-      }
-    } else {
-      // Fallbacks
-      setFullName(user.full_name || '');
-      setHeadline('Full Stack Engineer');
-      setLocation('Bengaluru, India');
-      setBio('Passionate developer focused on building high-performance web applications, styling clean user interfaces, and aligning skill sets with market-ready roles.');
-      setAvatar(null);
-      setSkills(defaultSkills);
-      setGithub('https://github.com');
-      setLinkedin('https://linkedin.com');
-      setPortfolio('https://portfolio.dev');
-      setStats({ avgScore: 78, resumesUploaded: 3, savedJobsCount: 4 });
-      setSavedJobs(defaultJobs);
-    }
-  }, [user]);
+        setLoading(true);
+        const profileData = await getUserProfile();
 
-  // Helper to save current state to localStorage
-  const saveProfileToStorage = (updatedFields = {}) => {
-    if (!user) return;
-    const storageKey = `skillsync_profile_${user.email || 'default'}`;
-    
-    const dataToSave = {
-      fullName: updatedFields.fullName !== undefined ? updatedFields.fullName : fullName,
-      headline: updatedFields.headline !== undefined ? updatedFields.headline : headline,
-      location: updatedFields.location !== undefined ? updatedFields.location : location,
-      bio: updatedFields.bio !== undefined ? updatedFields.bio : bio,
-      avatar: updatedFields.avatar !== undefined ? updatedFields.avatar : avatar,
-      skills: updatedFields.skills !== undefined ? updatedFields.skills : skills,
-      github: updatedFields.github !== undefined ? updatedFields.github : github,
-      linkedin: updatedFields.linkedin !== undefined ? updatedFields.linkedin : linkedin,
-      portfolio: updatedFields.portfolio !== undefined ? updatedFields.portfolio : portfolio,
-      stats: updatedFields.stats !== undefined ? updatedFields.stats : stats,
-      savedJobs: updatedFields.savedJobs !== undefined ? updatedFields.savedJobs : savedJobs,
+        setFullName(profileData.full_name || user.full_name || '');
+        setHeadline(profileData.target_role || 'Software Developer');
+        setLocation(profileData.location || '');
+        setBio(profileData.description || '');
+        setGithub(profileData.github || '');
+        setLinkedin(profileData.linkedin || '');
+        setPortfolio(profileData.portfolio || '');
+
+        // Parse skill_matrix if it's a JSON string
+        let skillsList = [];
+        if (profileData.skill_matrix) {
+          try {
+            skillsList = typeof profileData.skill_matrix === 'string'
+              ? JSON.parse(profileData.skill_matrix)
+              : profileData.skill_matrix;
+          } catch (e) {
+            console.error('Failed to parse skill_matrix', e);
+            skillsList = [];
+          }
+        }
+        setSkills(Array.isArray(skillsList) ? skillsList : []);
+
+        setStats({
+          avgScore: profileData.match_score || 0,
+          resumesUploaded: profileData.resume_analysed ? 1 : 0,
+          savedJobsCount: savedJobs.length
+        });
+
+      } catch (err) {
+        console.error('Failed to load profile:', err);
+        setError(err.message || 'Failed to load profile data');
+
+        // Set defaults on error
+        setFullName(user.full_name || '');
+        setHeadline('Software Developer');
+        setLocation('');
+        setBio('');
+        setSkills([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-  };
+    loadProfile();
+  }, [user]);
 
   // Handle Form Submit
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
@@ -116,11 +103,21 @@ export default function ProfilePage() {
     }
 
     try {
-      saveProfileToStorage();
+      const updates = {
+        full_name: fullName,
+        target_role: headline,
+        location: location,
+        description: bio,
+        github: github,
+        linkedin: linkedin,
+        portfolio: portfolio
+      };
+
+      await updatePersonalInfo(updates);
       setSuccessMsg("Profile information saved successfully!");
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
-      setError("Failed to save changes. Local storage might be full.");
+      setError(err.message || "Failed to save changes.");
     }
   };
 
@@ -143,7 +140,6 @@ export default function ProfilePage() {
     reader.onload = (event) => {
       const base64Data = event.target.result;
       setAvatar(base64Data);
-      saveProfileToStorage({ avatar: base64Data });
       setSuccessMsg("Profile picture updated!");
       setTimeout(() => setSuccessMsg(null), 3000);
     };
@@ -161,7 +157,7 @@ export default function ProfilePage() {
   };
 
   // Add a new skill
-  const handleAddSkill = (e) => {
+  const handleAddSkill = async (e) => {
     e.preventDefault();
     const cleanSkill = newSkill.trim();
     if (!cleanSkill) return;
@@ -176,14 +172,28 @@ export default function ProfilePage() {
     const updatedSkills = [...skills, cleanSkill];
     setSkills(updatedSkills);
     setNewSkill('');
-    saveProfileToStorage({ skills: updatedSkills });
+
+    try {
+      await updateSkillSet(updatedSkills);
+      setSuccessMsg("Skill added successfully!");
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err) {
+      setError(err.message || "Failed to update skills.");
+      setSkills(skills);
+    }
   };
 
   // Delete a skill tag
-  const handleDeleteSkill = (skillToDelete) => {
+  const handleDeleteSkill = async (skillToDelete) => {
     const updatedSkills = skills.filter(s => s !== skillToDelete);
     setSkills(updatedSkills);
-    saveProfileToStorage({ skills: updatedSkills });
+
+    try {
+      await updateSkillSet(updatedSkills);
+    } catch (err) {
+      setError(err.message || "Failed to remove skill.");
+      setSkills(skills);
+    }
   };
 
   // Remove saved job
@@ -192,7 +202,6 @@ export default function ProfilePage() {
     setSavedJobs(updatedJobs);
     const updatedStats = { ...stats, savedJobsCount: updatedJobs.length };
     setStats(updatedStats);
-    saveProfileToStorage({ savedJobs: updatedJobs, stats: updatedStats });
   };
 
   // Trigger Resume Upload Simulator
@@ -206,15 +215,15 @@ export default function ProfilePage() {
 
     setTimeout(() => {
       setParseStep('Parsing text contents and credentials...');
-      
+
       setTimeout(() => {
         setParseStep('Extracting skills, target roles, and metrics...');
-        
+
         setTimeout(() => {
           // Completed Simulation
           const extractedHeadline = "Lead React Architect";
           const parsedSkillsToAdd = ["Redux Toolkit", "Next.js", "Docker", "GraphQL", "CI/CD"];
-          
+
           // Combine skills and filter duplicates
           const newSkillsList = [...skills];
           parsedSkillsToAdd.forEach(skill => {
@@ -235,18 +244,23 @@ export default function ProfilePage() {
           setParsingResume(false);
           setParseStep('');
 
-          saveProfileToStorage({
-            headline: extractedHeadline,
-            skills: newSkillsList,
-            stats: newStats
-          });
-
           setSuccessMsg(`Resume "${file.name}" parsed! Headline updated to "${extractedHeadline}" and relevant skills added.`);
           setTimeout(() => setSuccessMsg(null), 5000);
         }, 800);
       }, 800);
     }, 600);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-text-secondary text-sm">Loading profile...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8 page-wrapper mx-auto max-w-[1200px] w-full px-6 md:px-8">
