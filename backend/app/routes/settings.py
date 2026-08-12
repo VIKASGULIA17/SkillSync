@@ -34,7 +34,7 @@ async def set_api_key(body: ApiKeyRequest) -> dict:
         from langchain_groq import ChatGroq
 
         llm = ChatGroq(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            model="llama-3.3-70b-versatile",
             temperature=0,
             max_retries=1,
             api_key=key,

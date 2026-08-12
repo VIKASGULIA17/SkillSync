@@ -84,3 +84,57 @@ class User(Base):  # type: ignore[misc]
     back_populates="user",
     uselist=False
 )
+    analysis_history = relationship("AnalysisHistory", back_populates="user")
+    job_applications = relationship("JobApplication", back_populates="user")
+    saved_jobs = relationship("SavedJob", back_populates="user")
+
+
+class AnalysisHistory(Base):  # type: ignore[misc]
+    """Tracks user's resume analysis history for progress tracking."""
+
+    __tablename__ = "analysis_history"
+
+    id: int = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id: int = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    date: datetime = Column(DateTime, server_default=func.now(), nullable=False)
+    role: str = Column(String(255), nullable=False)
+    score: float = Column(Float, nullable=False)
+    matched_skills: list = Column(JSON, default=list)
+    missing_skills: list = Column(JSON, default=list)
+    resume_filename: str = Column(String(255), nullable=True)
+
+    user = relationship("User", back_populates="analysis_history")
+
+
+class JobApplication(Base):  # type: ignore[misc]
+    """Tracks user's job applications for Kanban board."""
+
+    __tablename__ = "job_applications"
+
+    id: int = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id: int = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title: str = Column(String(255), nullable=False)
+    company: str = Column(String(255), nullable=False)
+    location: str = Column(String(255), nullable=True, default="")
+    salary: str = Column(String(255), nullable=True, default="")
+    link: str = Column(Text, nullable=True, default="")
+    platform: str = Column(String(100), nullable=True, default="Manual Input")
+    status: str = Column(String(50), nullable=False, default="wishlist")  # wishlist, applied, interviewing, offered, rejected
+    date_added: datetime = Column(DateTime, server_default=func.now(), nullable=False)
+    date_updated: datetime = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="job_applications")
+
+
+class SavedJob(Base):  # type: ignore[misc]
+    """Tracks user's saved/bookmarked jobs."""
+
+    __tablename__ = "saved_jobs"
+
+    id: int = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id: int = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    job_id: int = Column(Integer, ForeignKey("jobs.id"), nullable=False, index=True)
+    saved_at: datetime = Column(DateTime, server_default=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="saved_jobs")
+    job = relationship("Job")

@@ -106,7 +106,7 @@ async def updateSkillSet(body:ProfileSkillsMatrixChange,
         
         updates=body.model_dump(exclude_unset=True,mode="json")
 
-        user_profile.skill_matrix=updates.skill_matrix
+        user_profile.skill_matrix=updates["skill_matrix"]
 
         db.commit()
 

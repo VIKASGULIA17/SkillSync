@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
 import ErrorBanner from '../components/ErrorBanner';
+import {
+  getJobApplications,
+  createJobApplication,
+  updateJobApplication,
+  deleteJobApplication
+} from '../api/client';
 
 export default function TrackerPage() {
   const [applications, setApplications] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeTab, setActiveTab] = useState('wishlist');
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // Form states for manual additions
   const [newTitle, setNewTitle] = useState('');
@@ -15,9 +22,9 @@ export default function TrackerPage() {
   const [newLink, setNewLink] = useState('');
 
   const columns = [
-    { 
-      id: 'wishlist', 
-      title: 'Wishlist', 
+    {
+      id: 'wishlist',
+      title: 'Wishlist',
       color: 'border-t-[#a855f7]/60',
       icon: (
         <svg className="w-3.5 h-3.5 text-[#a855f7]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -25,9 +32,9 @@ export default function TrackerPage() {
         </svg>
       )
     },
-    { 
-      id: 'applied', 
-      title: 'Applied', 
+    {
+      id: 'applied',
+      title: 'Applied',
       color: 'border-t-[#3b82f6]/60',
       icon: (
         <svg className="w-3.5 h-3.5 text-[#3b82f6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -36,9 +43,9 @@ export default function TrackerPage() {
         </svg>
       )
     },
-    { 
-      id: 'interviewing', 
-      title: 'Interview', 
+    {
+      id: 'interviewing',
+      title: 'Interview',
       color: 'border-t-[#eab308]/60',
       icon: (
         <svg className="w-3.5 h-3.5 text-[#eab308]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -46,9 +53,9 @@ export default function TrackerPage() {
         </svg>
       )
     },
-    { 
-      id: 'offered', 
-      title: 'Offered', 
+    {
+      id: 'offered',
+      title: 'Offered',
       color: 'border-t-[#22c55e]/60',
       icon: (
         <svg className="w-3.5 h-3.5 text-[#22c55e]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -57,9 +64,9 @@ export default function TrackerPage() {
         </svg>
       )
     },
-    { 
-      id: 'rejected', 
-      title: 'Archive', 
+    {
+      id: 'rejected',
+      title: 'Archive',
       color: 'border-t-[#ef4444]/60',
       icon: (
         <svg className="w-3.5 h-3.5 text-[#ef4444]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -72,30 +79,41 @@ export default function TrackerPage() {
   ];
 
   useEffect(() => {
-    const saved = localStorage.getItem('tracked_applications');
-    if (saved) {
-      setApplications(JSON.parse(saved));
-    }
+    loadApplications();
   }, []);
 
-  const saveApplications = (updated) => {
-    setApplications(updated);
-    localStorage.setItem('tracked_applications', JSON.stringify(updated));
+  const loadApplications = async () => {
+    setLoading(true);
+    try {
+      const data = await getJobApplications();
+      setApplications(data || []);
+    } catch (err) {
+      console.error('Failed to load applications:', err);
+      setError(err.message || 'Failed to load applications');
+      setApplications([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const moveApp = (id, newStatus) => {
-    const updated = applications.map(app => {
-      if (app.id === id) {
-        return { ...app, status: newStatus };
-      }
-      return app;
-    });
-    saveApplications(updated);
+  const moveApp = async (id, newStatus) => {
+    try {
+      await updateJobApplication(id, { status: newStatus });
+      setApplications(prev =>
+        prev.map(app => (app.id === id ? { ...app, status: newStatus } : app))
+      );
+    } catch (err) {
+      setError(err.message || 'Failed to update application status');
+    }
   };
 
-  const deleteApp = (id) => {
-    const updated = applications.filter(app => app.id !== id);
-    saveApplications(updated);
+  const deleteApp = async (id) => {
+    try {
+      await deleteJobApplication(id);
+      setApplications(prev => prev.filter(app => app.id !== id));
+    } catch (err) {
+      setError(err.message || 'Failed to delete application');
+    }
   };
 
   const handleDragStart = (e, id) => {
@@ -108,38 +126,40 @@ export default function TrackerPage() {
 
   const handleDrop = (e, targetStatus) => {
     e.preventDefault();
-    const id = e.dataTransfer.getData('text/plain');
+    const id = parseInt(e.dataTransfer.getData('text/plain'));
     moveApp(id, targetStatus);
   };
 
-  const handleAddApp = (e) => {
+  const handleAddApp = async (e) => {
     e.preventDefault();
     if (!newTitle.trim() || !newCompany.trim()) {
       setError('Job Title and Company are required.');
       return;
     }
 
-    const newApp = {
-      id: Date.now() + Math.random().toString(36).substr(2, 9),
-      title: newTitle.trim(),
-      company: newCompany.trim(),
-      location: newLocation.trim(),
-      salary: newSalary.trim(),
-      link: newLink.trim(),
-      platform: 'Manual Input',
-      status: 'wishlist',
-      date: new Date().toISOString()
-    };
+    try {
+      const newApp = await createJobApplication({
+        title: newTitle.trim(),
+        company: newCompany.trim(),
+        location: newLocation.trim(),
+        salary: newSalary.trim(),
+        link: newLink.trim(),
+        platform: 'Manual Input',
+        status: 'wishlist',
+      });
 
-    saveApplications([...applications, newApp]);
+      setApplications(prev => [newApp, ...prev]);
 
-    setNewTitle('');
-    setNewCompany('');
-    setNewLocation('');
-    setNewSalary('');
-    setNewLink('');
-    setShowAddForm(false);
-    setError(null);
+      setNewTitle('');
+      setNewCompany('');
+      setNewLocation('');
+      setNewSalary('');
+      setNewLink('');
+      setShowAddForm(false);
+      setError(null);
+    } catch (err) {
+      setError(err.message || 'Failed to create application');
+    }
   };
 
   // Monogram color builder based on company name
@@ -161,73 +181,90 @@ export default function TrackerPage() {
 
   // Card component renderer
   const renderCard = (app) => (
-    <div 
-      key={app.id} 
-      className="p-3.5 rounded bg-white/[0.02] border border-white/[0.06] hover:border-primary/40 hover:bg-white/[0.04] transition-all duration-300 flex flex-col gap-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:cursor-grabbing cursor-grab relative group"
+    <div
+      key={app.id}
+      className="p-4 rounded-lg bg-gradient-to-br from-bg-secondary to-bg-tertiary border border-border hover:border-primary/60 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 flex flex-col gap-3 relative group cursor-grab active:cursor-grabbing hover:-translate-y-1"
       draggable
       onDragStart={(e) => handleDragStart(e, app.id)}
     >
-      {/* Top row: Monogram, Title, Company and Delete */}
-      <div className="flex justify-between items-start gap-2 w-full">
-        <div className="flex items-center gap-2 overflow-hidden grow">
-          <div className={`w-6 h-6 rounded border flex items-center justify-center text-[10px] font-bold font-mono uppercase shrink-0 ${getInitialsColor(app.company)}`}>
-            {app.company.slice(0, 2)}
-          </div>
-          <div className="overflow-hidden grow">
-            <h3 className="text-xs font-bold text-text-primary m-0 leading-tight truncate" title={app.title}>{app.title}</h3>
-            <p className="text-[10px] text-text-secondary font-medium m-0 truncate mt-0.5">{app.company}</p>
-          </div>
+      {/* Delete button - top right corner */}
+      <button
+        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-error/10 text-error hover:bg-error hover:text-white cursor-pointer border-none opacity-0 group-hover:opacity-100 transition-all duration-200"
+        onClick={() => deleteApp(app.id)}
+        title="Delete application"
+      >
+        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+
+      {/* Company Logo/Monogram */}
+      <div className="flex items-start gap-2.5">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold font-mono uppercase shrink-0 shadow-md ${getInitialsColor(app.company)}`}>
+          {app.company.slice(0, 2)}
         </div>
-        <button 
-          className="bg-transparent text-text-tertiary hover:text-error cursor-pointer border-none p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" 
-          onClick={() => deleteApp(app.id)}
-          title="Delete application record"
-        >
-          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+
+        <div className="flex-1 min-w-0 pr-4">
+          <h3 className="text-xs font-bold text-text-primary m-0 leading-tight mb-1" title={app.title}>
+            {app.title}
+          </h3>
+          <p className="text-[11px] text-text-secondary font-semibold m-0 flex items-center gap-1">
+            <span>🏢</span>
+            <span className="truncate">{app.company}</span>
+          </p>
+        </div>
       </div>
 
-      {/* Middle row: Compact inline metadata text */}
-      {(app.location || app.salary) && (
-        <div className="text-[9px] font-mono text-text-tertiary truncate w-full" title={`${app.location || ''} ${app.salary ? '· ' + app.salary : ''}`}>
-          {app.location && <span>{app.location}</span>}
-          {app.location && app.salary && <span className="mx-1">·</span>}
-          {app.salary && <span>{app.salary}</span>}
+      {/* Metadata Tags */}
+      <div className="flex flex-col gap-1.5">
+        {app.location && (
+          <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
+            <span>📍</span>
+            <span className="truncate">{app.location}</span>
+          </div>
+        )}
+        {app.salary && (
+          <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
+            <span>💰</span>
+            <span className="truncate">{app.salary}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/30 text-[9px] font-semibold text-primary">
+            {app.platform}
+          </span>
         </div>
-      )}
+      </div>
 
-      {/* Footer row: compact Details link and Move dropdown */}
-      <div className="mt-1 pt-2 border-t border-white/[0.04] flex justify-between items-center w-full">
-        <span className="text-[8px] font-mono text-text-tertiary uppercase tracking-wider bg-white/[0.03] px-1 rounded truncate max-w-[70px]" title={app.platform}>
-          {app.platform}
-        </span>
-        
-        <div className="flex items-center gap-2">
-          {app.link && (
-            <a 
-              href={app.link} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-[9px] text-primary hover:text-primary-hover font-bold flex items-center gap-0.5 no-underline shrink-0"
-            >
-              Details ↗
-            </a>
-          )}
-          <select 
-            value={app.status} 
-            onChange={(e) => moveApp(app.id, e.target.value)}
-            className="px-1 py-0.2 rounded text-[8px] bg-bg-tertiary border border-border outline-none text-text-secondary cursor-pointer hover:border-primary transition-colors font-mono max-w-[85px]"
+      {/* Actions Footer */}
+      <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+        {app.link && (
+          <a
+            href={app.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md bg-primary/10 hover:bg-primary hover:text-white text-primary text-[11px] font-semibold transition-all duration-200 no-underline"
           >
-            <option value="wishlist">Wishlist</option>
-            <option value="applied">Applied</option>
-            <option value="interviewing">Interview</option>
-            <option value="offered">Offered</option>
-            <option value="rejected">Archive</option>
-          </select>
-        </div>
+            <span>View Job</span>
+            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </a>
+        )}
+        <select
+          value={app.status}
+          onChange={(e) => moveApp(app.id, e.target.value)}
+          className="w-full px-2.5 py-1.5 rounded-md text-[11px] font-medium bg-bg-tertiary border border-border text-text-primary cursor-pointer hover:border-primary focus:border-primary outline-none transition-all"
+        >
+          <option value="wishlist">📌 Wishlist</option>
+          <option value="applied">✉️ Applied</option>
+          <option value="interviewing">💬 Interview</option>
+          <option value="offered">🎉 Offered</option>
+          <option value="rejected">📦 Archive</option>
+        </select>
       </div>
     </div>
   );

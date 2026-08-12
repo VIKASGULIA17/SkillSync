@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { createJobApplication, getJobApplications } from '../api/client';
 
 export default function JobCard({ job }) {
   const {
@@ -12,42 +13,47 @@ export default function JobCard({ job }) {
   } = job;
 
   const [status, setStatus] = useState('');
+  const [isTracking, setIsTracking] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('tracked_applications');
-    if (saved) {
-      const apps = JSON.parse(saved);
-      const matchedApp = apps.find(app => app.title === title && app.company === company);
-      setStatus(matchedApp ? matchedApp.status : '');
+  const handleStatusChange = async (newStatus) => {
+    if (!newStatus) {
+      setStatus('');
+      return;
     }
-  }, [title, company]);
 
-  const handleStatusChange = (newStatus) => {
-    const saved = localStorage.getItem('tracked_applications') || '[]';
-    let apps = JSON.parse(saved);
+    setIsTracking(true);
 
-    // Remove existing matching entry if any
-    apps = apps.filter(app => !(app.title === title && app.company === company));
+    try {
+      // Check for duplicates before creating
+      const existingApps = await getJobApplications();
+      const isDuplicate = existingApps.some(
+        app => app.title === title && app.company === company
+      );
 
-    if (newStatus) {
-      const newApp = {
-        id: Date.now() + Math.random().toString(36).substr(2, 9),
+      if (isDuplicate) {
+        alert('This job is already tracked in your applications.');
+        setIsTracking(false);
+        return;
+      }
+
+      // Create job application in database
+      await createJobApplication({
         title,
         company,
-        location,
-        salary,
-        experience,
+        location: location || '',
+        salary: salary || '',
         link,
         platform,
         status: newStatus,
-        date: new Date().toISOString()
-      };
-      apps.push(newApp);
+      });
+
       setStatus(newStatus);
-    } else {
-      setStatus('');
+    } catch (err) {
+      console.error('Failed to track job:', err);
+      alert('Failed to track job. Please try again.');
+    } finally {
+      setIsTracking(false);
     }
-    localStorage.setItem('tracked_applications', JSON.stringify(apps));
   };
 
   const isInternshala = platform?.toLowerCase() === 'internshala';
@@ -103,20 +109,21 @@ export default function JobCard({ job }) {
             <line x1="10" y1="14" x2="21" y2="3" />
           </svg>
         </a>
-        <select 
-          value={status} 
+        <select
+          value={status}
           onChange={(e) => handleStatusChange(e.target.value)}
+          disabled={isTracking}
           className="btn btn-secondary text-sm font-sans"
           style={{
             width: 'auto',
             minWidth: '120px',
-            cursor: 'pointer',
+            cursor: isTracking ? 'wait' : 'pointer',
             outline: 'none',
             padding: '8px 12px',
           }}
           title="Track this job application"
         >
-          <option value="">Track Job</option>
+          <option value="">{isTracking ? 'Tracking...' : 'Track Job'}</option>
           <option value="wishlist">Wishlist</option>
           <option value="applied">Applied</option>
           <option value="interviewing">Interview</option>

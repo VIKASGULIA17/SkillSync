@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import ErrorBanner from '../components/ErrorBanner.jsx';
-import { getUserProfile, updatePersonalInfo, updateSkillSet } from '../api/client.js';
+import {
+  getUserProfile,
+  updatePersonalInfo,
+  updateSkillSet,
+  getSavedJobs,
+  unsaveJob,
+  getApiKeyStatus,
+  setApiKey,
+  analyzeResume,
+  saveAnalysisToHistory,
+} from '../api/client.js';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -12,6 +22,12 @@ export default function ProfilePage() {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // API Key (Settings) states
+  const [apiKey, setApiKeyInput] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
 
   // Profile field states
   const [fullName, setFullName] = useState('');
@@ -31,7 +47,7 @@ export default function ProfilePage() {
   const [stats, setStats] = useState({ avgScore: 0, resumesUploaded: 0, savedJobsCount: 0 });
   const [savedJobs, setSavedJobs] = useState([]);
 
-  // Resume Upload Simulation State
+  // Resume Upload State
   const [parsingResume, setParsingResume] = useState(false);
   const [parseStep, setParseStep] = useState('');
   const [parsedFileName, setParsedFileName] = useState('');
@@ -67,11 +83,49 @@ export default function ProfilePage() {
         }
         setSkills(Array.isArray(skillsList) ? skillsList : []);
 
-        setStats({
-          avgScore: profileData.match_score || 0,
-          resumesUploaded: profileData.resume_analysed ? 1 : 0,
-          savedJobsCount: savedJobs.length
+        // Load saved jobs from backend first
+        let savedJobsCount = 0;
+        try {
+          const savedData = await getSavedJobs();
+          console.log('Saved jobs data:', savedData); // Debug log
+          const jobs = (savedData || []).map(s => ({
+            id: s.id,
+            title: s.job.title,
+            company: s.job.company,
+            location: s.job.location,
+            category: s.job.category,
+            salary: s.job.salary,
+            url: s.job.link,
+          }));
+          setSavedJobs(jobs);
+          savedJobsCount = jobs.length;
+        } catch (savedErr) {
+          console.error('Failed to load saved jobs:', savedErr);
+          setSavedJobs([]);
+        }
+
+        // Set stats with actual saved jobs count
+        const avgScore = Math.round((profileData.match_score || 0) * 10);
+        console.log('Profile stats:', { // Debug log
+          avgScore,
+          resumesUploaded: profileData.resume_analysed || 0,
+          savedJobsCount
         });
+
+        setStats({
+          avgScore: avgScore,
+          resumesUploaded: profileData.resume_analysed || 0,
+          savedJobsCount: savedJobsCount
+        });
+
+        // Load API key status
+        try {
+          const keyStatus = await getApiKeyStatus();
+          setIsConfigured(keyStatus.configured || false);
+        } catch (keyErr) {
+          console.error('Failed to load API key status:', keyErr);
+          setIsConfigured(false);
+        }
 
       } catch (err) {
         console.error('Failed to load profile:', err);
@@ -197,58 +251,104 @@ export default function ProfilePage() {
   };
 
   // Remove saved job
-  const handleRemoveJob = (jobId) => {
-    const updatedJobs = savedJobs.filter(j => j.id !== jobId);
-    setSavedJobs(updatedJobs);
-    const updatedStats = { ...stats, savedJobsCount: updatedJobs.length };
-    setStats(updatedStats);
+  const handleRemoveJob = async (jobId) => {
+    try {
+      await unsaveJob(jobId);
+      const updatedJobs = savedJobs.filter(j => j.id !== jobId);
+      setSavedJobs(updatedJobs);
+      setStats(prev => ({ ...prev, savedJobsCount: updatedJobs.length }));
+    } catch (err) {
+      setError(err.message || 'Failed to remove saved job.');
+    }
   };
 
-  // Trigger Resume Upload Simulator
-  const handleResumeSimulatedUpload = (e) => {
+  // Save / validate the Groq API key (Settings)
+  const handleApiKeySubmit = async (e) => {
+    e.preventDefault();
+    if (!apiKey.trim()) {
+      setError('API key cannot be empty.');
+      return;
+    }
+
+    setSavingKey(true);
+    setError(null);
+
+    try {
+      const result = await setApiKey(apiKey.trim());
+      if (result.valid) {
+        setIsConfigured(true);
+        setSuccessMsg('Groq API Key configured and validated successfully!');
+        setApiKeyInput('');
+      } else {
+        setError(result.message || 'API key validation failed. Please check the key.');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while validating the API key.');
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
+  // Upload resume and parse it via the real analysis API
+  const handleResumeUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setParsedFileName(file.name);
     setParsingResume(true);
     setParseStep('Uploading document securely...');
+    setError(null);
 
-    setTimeout(() => {
-      setParseStep('Parsing text contents and credentials...');
+    try {
+      setParseStep('Parsing text contents and extracting skills...');
+      const result = await analyzeResume(file);
 
-      setTimeout(() => {
-        setParseStep('Extracting skills, target roles, and metrics...');
+      // Save analysis to history to update backend stats
+      try {
+        await saveAnalysisToHistory({
+          role: result.best_role,
+          score: result.score,
+          matched_skills: result.matched_skills,
+          missing_skills: result.missing_skills,
+          resume_filename: file.name
+        });
+      } catch (historyErr) {
+        console.error('Failed to save analysis to history:', historyErr);
+      }
 
-        setTimeout(() => {
-          // Completed Simulation
-          const extractedHeadline = "Lead React Architect";
-          const parsedSkillsToAdd = ["Redux Toolkit", "Next.js", "Docker", "GraphQL", "CI/CD"];
+      // Combine parsed skills with existing, filtering duplicates
+      const newSkillsList = [...skills];
+      (result.matched_skills || []).forEach(skill => {
+        if (!newSkillsList.some(s => s.toLowerCase() === skill.toLowerCase())) {
+          newSkillsList.push(skill);
+        }
+      });
 
-          // Combine skills and filter duplicates
-          const newSkillsList = [...skills];
-          parsedSkillsToAdd.forEach(skill => {
-            if (!newSkillsList.some(s => s.toLowerCase() === skill.toLowerCase())) {
-              newSkillsList.push(skill);
-            }
-          });
+      setHeadline(result.best_role || headline);
+      setSkills(newSkillsList);
 
-          const newStats = {
-            avgScore: 88,
-            resumesUploaded: stats.resumesUploaded + 1,
-            savedJobsCount: savedJobs.length
-          };
+      // Persist updated skills + target role to backend
+      try {
+        await updateSkillSet(newSkillsList);
+        await updatePersonalInfo({ target_role: result.best_role || headline });
+      } catch (saveErr) {
+        console.error('Failed to persist parsed skills:', saveErr);
+      }
 
-          setHeadline(extractedHeadline);
-          setSkills(newSkillsList);
-          setStats(newStats);
-          setParsingResume(false);
-          setParseStep('');
+      setStats(prev => ({
+        ...prev,
+        avgScore: Math.round((result.score || 0) * 10),
+        resumesUploaded: prev.resumesUploaded + 1,
+      }));
 
-          setSuccessMsg(`Resume "${file.name}" parsed! Headline updated to "${extractedHeadline}" and relevant skills added.`);
-          setTimeout(() => setSuccessMsg(null), 5000);
-        }, 800);
-      }, 800);
-    }, 600);
+      setSuccessMsg(`Resume "${file.name}" parsed! Match score ${Math.round((result.score || 0) * 10)}% for ${result.best_role}.`);
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch (err) {
+      setError(err.message || 'Failed to parse resume.');
+    } finally {
+      setParsingResume(false);
+      setParseStep('');
+    }
   };
 
   if (loading) {
@@ -552,6 +652,63 @@ export default function ProfilePage() {
             )}
           </div>
 
+          {/* Settings: Groq API Key Configuration */}
+          <div className="p-8 bg-bg-secondary border border-border rounded-md stagger-3">
+            <div className="flex justify-between items-center border-b border-border pb-4 mb-6">
+              <h2 className="text-xl font-bold font-headings text-text-primary">
+                ⚙️ AI Integration Settings
+              </h2>
+              {isConfigured ? (
+                <span className="badge badge-success">● API Key Configured</span>
+              ) : (
+                <span className="badge badge-warning">● API Key Required</span>
+              )}
+            </div>
+
+            <p className="text-sm text-text-secondary leading-relaxed">
+              SkillSync uses the <strong className="text-text-primary">Groq API</strong> to generate
+              personalized skill-gap feedback and career study paths.
+            </p>
+
+            <form onSubmit={handleApiKeySubmit} className="flex flex-col gap-4 mt-4">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="api-key-input" className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                  Enter Groq API Key
+                </label>
+                <div className="flex gap-4">
+                  <input
+                    id="api-key-input"
+                    type={showKey ? 'text' : 'password'}
+                    placeholder={isConfigured ? '••••••••••••••••••••••••••••••••' : 'gsk_...'}
+                    value={apiKey}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    disabled={savingKey}
+                    className="grow"
+                  />
+                  <button
+                    type="button"
+                    className="whitespace-nowrap btn btn-secondary"
+                    onClick={() => setShowKey(!showKey)}
+                    tabIndex="-1"
+                  >
+                    {showKey ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-text-tertiary mt-1">
+                  Key is validated directly with Groq on save, and held securely in server memory. It is never stored permanently.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                className="self-start btn btn-primary"
+                disabled={savingKey || !apiKey}
+              >
+                {savingKey ? 'Validating Key...' : 'Test & Save Config'}
+              </button>
+            </form>
+          </div>
+
         </div>
 
         {/* Right Hand side: Skills list & Mock Parser */}
@@ -606,11 +763,11 @@ export default function ProfilePage() {
 
             <h3 className="text-lg font-bold font-headings text-text-primary mb-2 flex items-center gap-2">
               <span>Smart Resume Sync</span>
-              <span className="badge badge-warning text-[9px]">Simulated</span>
+              <span className="badge badge-info text-[9px]">Live</span>
             </h3>
-            
+
             <p className="text-xs text-text-secondary leading-relaxed mb-4">
-              Simulate uploading a newer resume document to scan credentials, update your role profile, and inject missing skills automatically in real-time.
+              Upload a newer resume document to scan credentials, update your target role, and inject matching skills automatically in real-time.
             </p>
 
             {parsingResume ? (
@@ -635,7 +792,7 @@ export default function ProfilePage() {
                 <input
                   type="file"
                   ref={resumeInputRef}
-                  onChange={handleResumeSimulatedUpload}
+                  onChange={handleResumeUpload}
                   accept=".pdf,.docx,.doc,.txt"
                   className="hidden"
                 />

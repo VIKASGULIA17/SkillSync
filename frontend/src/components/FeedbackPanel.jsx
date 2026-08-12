@@ -49,8 +49,8 @@ export default function FeedbackPanel({ feedback, isLoading, error }) {
             {isApiKeyError ? (
               <>
                 API key not configured. Please{' '}
-                <Link to="/settings" className="text-primary font-semibold hover:underline">configure your Groq API key</Link>{' '}
-                in settings to get AI-powered career feedback.
+                <Link to="/profile" className="text-primary font-semibold hover:underline">configure your Groq API key</Link>{' '}
+                in your profile to get AI-powered career feedback.
               </>
             ) : (
               error

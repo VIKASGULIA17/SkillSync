@@ -135,23 +135,6 @@ export async function getMe() {
   return request('/auth/me');
 }
 
-
-export async function getIsAdmin(){
-  return request('/auth/is_admin')
-}
-
-export async function getIsUser() {
-  return request('/auth/is_user');
-}
-
-export async function getAllUsers() {
-  return request('/auth/get_all_users');
-}
-
-export async function getAllAdmins() {
-  return request('/auth/get_all_admins');
-}
-
 export async function getUserProfile() {
   return request('/user_profile');
 }
@@ -170,4 +153,148 @@ export async function updateSkillSet(skillMatrix) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ skill_matrix: skillMatrix }),
   });
+}
+
+// ============================================================================
+// User History & Stats
+// ============================================================================
+
+export async function getUserHistory() {
+  return request('/user/history');
+}
+
+export async function saveAnalysisToHistory(data) {
+  return request('/user/history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getUserStats() {
+  return request('/user/stats');
+}
+
+// ============================================================================
+// Job Applications (Tracker)
+// ============================================================================
+
+export async function getJobApplications() {
+  return request('/user/applications');
+}
+
+export async function createJobApplication(data) {
+  return request('/user/applications', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateJobApplication(appId, updates) {
+  return request(`/user/applications/${appId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteJobApplication(appId) {
+  return request(`/user/applications/${appId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ============================================================================
+// Saved Jobs
+// ============================================================================
+
+export async function getSavedJobs() {
+  return request('/user/saved-jobs');
+}
+
+export async function saveJob(jobId) {
+  return request('/user/saved-jobs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ job_id: jobId }),
+  });
+}
+
+export async function unsaveJob(savedId) {
+  return request(`/user/saved-jobs/${savedId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ============================================================================
+// Resume Comparison
+// ============================================================================
+
+export async function compareResumes(resumeA, resumeB, targetRole) {
+  return request('/analyze/compare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      resume_a: resumeA,
+      resume_b: resumeB,
+      target_role: targetRole,
+    }),
+  });
+}
+
+// ============================================================================
+// Admin Endpoints
+// ============================================================================
+
+export async function getAdminStats() {
+  return request('/admin/stats');
+}
+
+export async function getAdminUsers() {
+  return request('/admin/users');
+}
+
+export async function getAdminUserDetails(userId) {
+  return request(`/admin/users/${userId}`);
+}
+
+export async function updateUserRole(userId, role) {
+  return request(`/admin/users/${userId}/role`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function deleteUser(userId) {
+  return request(`/admin/users/${userId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function createAdminJob(jobData) {
+  return request('/admin/jobs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(jobData),
+  });
+}
+
+export async function updateAdminJob(jobId, updates) {
+  return request(`/admin/jobs/${jobId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteAdminJob(jobId) {
+  return request(`/admin/jobs/${jobId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getScraperLogs() {
+  return request('/admin/scraper/logs');
 }

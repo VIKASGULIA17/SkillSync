@@ -191,4 +191,163 @@ class ProfileSkillsMatrixChange(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ==========================
+# Analysis History schemas
+
+class AnalysisHistoryResponse(BaseModel):
+    """Single analysis history entry."""
+
+    id: int
+    user_id: int
+    date: datetime
+    role: str
+    score: float
+    matched_skills: List[str]
+    missing_skills: List[str]
+    resume_filename: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AnalysisHistoryCreate(BaseModel):
+    """Request to save analysis to history."""
+
+    role: str
+    score: float
+    matched_skills: List[str]
+    missing_skills: List[str]
+    resume_filename: Optional[str] = None
+
+
+# ==========================
+# Job Application (Tracker) schemas
+
+class JobApplicationResponse(BaseModel):
+    """Single job application entry."""
+
+    id: int
+    user_id: int
+    title: str
+    company: str
+    location: str
+    salary: str
+    link: str
+    platform: str
+    status: str
+    date_added: datetime
+    date_updated: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class JobApplicationCreate(BaseModel):
+    """Request to create a new job application."""
+
+    title: str
+    company: str
+    location: Optional[str] = ""
+    salary: Optional[str] = ""
+    link: Optional[str] = ""
+    platform: Optional[str] = "Manual Input"
+    status: Optional[str] = "wishlist"
+
+
+class JobApplicationUpdate(BaseModel):
+    """Request to update a job application."""
+
+    title: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    salary: Optional[str] = None
+    link: Optional[str] = None
+    platform: Optional[str] = None
+    status: Optional[str] = None
+
+
+# ==========================
+# Saved Jobs schemas
+
+class SavedJobResponse(BaseModel):
+    """Saved job with full job details."""
+
+    id: int
+    user_id: int
+    job_id: int
+    saved_at: datetime
+    job: JobResponse
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SavedJobCreate(BaseModel):
+    """Request to save a job."""
+
+    job_id: int
+
+
+# ==========================
+# Admin schemas
+
+class AdminStatsResponse(BaseModel):
+    """Admin dashboard statistics."""
+
+    total_jobs: int
+    total_users: int
+    total_admins: int
+    avg_match_score: float
+    scraper_status: str
+
+
+class AdminJobCreate(BaseModel):
+    """Admin request to create a job manually."""
+
+    platform: str
+    title: str
+    company: str
+    location: str
+    category: str
+    salary: str
+    experience: str
+    link: str
+
+
+class AdminJobUpdate(BaseModel):
+    """Admin request to update a job."""
+
+    platform: Optional[str] = None
+    title: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    category: Optional[str] = None
+    salary: Optional[str] = None
+    experience: Optional[str] = None
+    link: Optional[str] = None
+
+
+class AdminUserRoleUpdate(BaseModel):
+    """Admin request to update user role."""
+
+    role: str
+
+
+class ResumeCompareRequest(BaseModel):
+    """Request to compare two resumes."""
+
+    resume_a: str
+    resume_b: str
+    target_role: str
+
+
+class ResumeCompareResponse(BaseModel):
+    """Result of comparing two resumes."""
+
+    role: str
+    resume_a_score: float
+    resume_a_matched: List[str]
+    resume_a_missing: List[str]
+    resume_b_score: float
+    resume_b_matched: List[str]
+    resume_b_missing: List[str]
+
+
 

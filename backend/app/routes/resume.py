@@ -13,7 +13,15 @@ from typing import List
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
-from app.schema import AnalysisResponse, FeedbackRequest, FeedbackResponse, RoleAnalysisRequest, RoleScore
+from app.schema import (
+    AnalysisResponse,
+    FeedbackRequest,
+    FeedbackResponse,
+    RoleAnalysisRequest,
+    RoleScore,
+    ResumeCompareRequest,
+    ResumeCompareResponse,
+)
 
 from app.services import ai_feedback, resume_parser, skills_db
 
@@ -257,3 +265,56 @@ async def analyze_for_role(body: RoleAnalysisRequest) -> AnalysisResponse:
         all_roles_scores=all_roles_scores,
         resume_text=body.resume_text[:3000],
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/analyze/compare — compare two resumes
+# ---------------------------------------------------------------------------
+@router.post("/analyze/compare", response_model=ResumeCompareResponse)
+async def compare_resumes(body: ResumeCompareRequest) -> ResumeCompareResponse:
+    """
+    Compare two resume versions against a target role.
+    Returns scores, matched skills, and missing skills for both.
+    """
+    if not body.resume_a.strip() or not body.resume_b.strip():
+        raise HTTPException(status_code=400, detail="Both resumes must be provided.")
+
+    if not body.target_role.strip():
+        raise HTTPException(status_code=400, detail="Target role must be specified.")
+
+    try:
+        # Load skills for the target role
+        role_skills = skills_db.load_skill_database(body.target_role)
+        if not role_skills:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No skills data found for role '{body.target_role}'.",
+            )
+
+        # Analyze resume A
+        skills_a = resume_parser.extract_skills(body.resume_a, role_skills)
+        report_a = evaluate_resume(skills_a, role_skills, body.target_role)
+
+        # Analyze resume B
+        skills_b = resume_parser.extract_skills(body.resume_b, role_skills)
+        report_b = evaluate_resume(skills_b, role_skills, body.target_role)
+
+        return ResumeCompareResponse(
+            role=body.target_role,
+            resume_a_score=report_a["score"],
+            resume_a_matched=report_a["matched_keywords"],
+            resume_a_missing=report_a["suggested_improvements"],
+            resume_b_score=report_b["score"],
+            resume_b_matched=report_b["matched_keywords"],
+            resume_b_missing=report_b["suggested_improvements"],
+        )
+    except HTTPException:
+        raise
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Resume comparison failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Resume comparison failed: {exc}",
+        )

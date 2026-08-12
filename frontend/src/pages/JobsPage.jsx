@@ -46,8 +46,8 @@ export default function JobsPage() {
       if (page === 1) {
         setStats({
           totalCount: data.total || 0,
-          categoriesCount: data.categories_count || 12,
-          companiesCount: data.companies_count || 45,
+          categoriesCount: data.categories_count || 0,
+          companiesCount: data.companies_count || 0,
         });
       }
     } catch (err) {
@@ -140,7 +140,7 @@ export default function JobsPage() {
       <JobFilters onFilterChange={handleFilterChange} initialFilters={filters} />
 
       {/* Stats Counter Bar */}
-      {!loading && jobs.length > 0 && (
+      {!loading && jobs.length > 0 && stats.categoriesCount > 0 && (
         <div className="flex justify-around items-center p-4 bg-bg-secondary border border-border rounded-md mb-6 stagger-1 max-sm:flex-col max-sm:gap-4 max-sm:p-6">
           <div className="flex flex-col items-center text-center">
             <span className="text-2xl font-extrabold text-primary">{total}</span>

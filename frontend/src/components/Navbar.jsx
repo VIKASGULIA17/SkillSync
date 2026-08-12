@@ -101,15 +101,7 @@ export default function Navbar() {
             <span className="text-base leading-none">💼</span>
             <span className="font-medium">Jobs</span>
           </NavLink>
-          <NavLink
-            to="/settings"
-            className={({ isActive }) => `flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-all duration-200 relative max-lg:px-4 max-lg:py-3 max-lg:rounded-lg max-lg:mb-1 ${isActive ? 'text-text-primary bg-bg-tertiary border-b-2 border-primary lg:rounded-b-none max-lg:border-b-0 max-lg:border-l-3 max-lg:border-l-primary max-lg:rounded-l-none max-lg:bg-primary/10' : ''}`}
-            onClick={handleLinkClick}
-          >
-            <span className="text-base leading-none">⚙️</span>
-            <span className="font-medium">Settings</span>
-          </NavLink>
-          {user && (
+          {user && user.role === 'admin' && (
             <NavLink
               to="/admin"
               className={({ isActive }) => `flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-all duration-200 relative max-lg:px-4 max-lg:py-3 max-lg:rounded-lg max-lg:mb-1 ${isActive ? 'text-text-primary bg-bg-tertiary border-b-2 border-primary lg:rounded-b-none max-lg:border-b-0 max-lg:border-l-3 max-lg:border-l-primary max-lg:rounded-l-none max-lg:bg-primary/10' : ''}`}

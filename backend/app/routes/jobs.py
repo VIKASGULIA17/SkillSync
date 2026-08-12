@@ -30,7 +30,7 @@ router = APIRouter(prefix="/api", tags=["Jobs"])
 # ---------------------------------------------------------------------------
 # GET /api/jobs
 # ---------------------------------------------------------------------------
-@router.get("/jobs", response_model=JobListResponse)
+@router.get("/jobs", response_model=dict)
 async def list_jobs(
     category: Optional[str] = Query(None, description="Filter by job category"),
     experience: Optional[str] = Query(None, description="Filter by experience level"),
@@ -39,8 +39,8 @@ async def list_jobs(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
-) -> JobListResponse:
-    """Return a paginated, optionally filtered list of scraped jobs."""
+) -> dict:
+    """Return a paginated, optionally filtered list of scraped jobs with stats."""
     query = db.query(Job)
 
     # --- Filters ----------------------------------------------------------
@@ -68,13 +68,19 @@ async def list_jobs(
         .all()
     )
 
-    return JobListResponse(
-        jobs=[JobResponse.model_validate(j) for j in jobs],
-        total=total,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages,
-    )
+    # Calculate real stats from database
+    categories_count = db.query(sa_func.count(sa_func.distinct(Job.category))).scalar() or 0
+    companies_count = db.query(sa_func.count(sa_func.distinct(Job.company))).scalar() or 0
+
+    return {
+        "jobs": [JobResponse.model_validate(j) for j in jobs],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages,
+        "categories_count": categories_count,
+        "companies_count": companies_count,
+    }
 
 
 # ---------------------------------------------------------------------------

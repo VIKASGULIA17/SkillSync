@@ -13,6 +13,12 @@ SkillSync analyzes your resume against target job roles, identifies skill gaps, 
 - **💡 AI Career Coach** — Personalized feedback and learning recommendations powered by Groq/Llama
 - **🔍 Job Discovery** — Browse 700+ jobs scraped from Internshala and FreshersWorld with search & filters
 - **📊 Skill Gap Visualization** — See exactly which skills you have and which ones you're missing
+- **📈 Progress Tracking** — Track your skill improvement over time with analysis history
+- **🗂️ Application Tracker** — Kanban board to manage job applications (Wishlist → Applied → Interview → Offered)
+- **💾 Saved Jobs** — Bookmark jobs for later and quick apply
+- **⚖️ Resume Comparison** — Compare two resume versions side-by-side against a target role
+- **👥 User Management** — Complete user profile system with skills matrix
+- **🔐 Admin Panel** — Full admin dashboard for user/job/scraper management
 
 ## 🛠️ Tech Stack
 
@@ -122,17 +128,71 @@ SkiilSync/
 
 ## 🔌 API Endpoints
 
+### Authentication
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/auth/signup` | Register new user account |
+| `POST` | `/api/auth/login` | Login and get JWT token |
+| `GET` | `/api/auth/me` | Get current user profile |
+| `GET` | `/api/auth/is_admin` | Check if user is admin |
+| `GET` | `/api/auth/is_user` | Check if user is regular user |
+
+### Resume Analysis
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/analyze` | Upload PDF resume for analysis |
 | `POST` | `/api/analyze/feedback` | Get AI-powered improvement feedback |
 | `POST` | `/api/analyze/role` | Analyze resume for a specific role |
-| `GET` | `/api/roles` | List all available roles |
+| `POST` | `/api/analyze/linkedin` | Analyze LinkedIn profile URL |
+| `POST` | `/api/analyze/compare` | Compare two resumes side-by-side |
+
+### User Features
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/user/history` | Get user's analysis history |
+| `POST` | `/api/user/history` | Save analysis to history |
+| `GET` | `/api/user/stats` | Get user statistics |
+| `GET` | `/api/user/applications` | Get tracked job applications |
+| `POST` | `/api/user/applications` | Add job application |
+| `PATCH` | `/api/user/applications/{id}` | Update application status |
+| `DELETE` | `/api/user/applications/{id}` | Remove application |
+| `GET` | `/api/user/saved-jobs` | Get saved/bookmarked jobs |
+| `POST` | `/api/user/saved-jobs` | Save a job |
+| `DELETE` | `/api/user/saved-jobs/{id}` | Unsave a job |
+
+### User Profile
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/user_profile` | Get user profile |
+| `POST` | `/api/user_profile/personalInfo/update` | Update personal info |
+| `POST` | `/api/user_profile/skill_set/update` | Update skills matrix |
+
+### Jobs
+| Method | Endpoint | Description |
+|---|---|---|
 | `GET` | `/api/jobs` | List jobs with filtering & pagination |
 | `POST` | `/api/jobs/refresh` | Trigger background job scraping |
 | `GET` | `/api/jobs/status` | Get scraping status |
+| `GET` | `/api/roles` | List all available roles |
+
+### Settings
+| Method | Endpoint | Description |
+|---|---|---|
 | `POST` | `/api/settings/api-key` | Configure Groq API key |
 | `GET` | `/api/settings/api-key/status` | Check API key status |
+
+### Admin (Requires Admin Role)
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/admin/stats` | Dashboard statistics |
+| `GET` | `/api/admin/users` | List all users |
+| `GET` | `/api/admin/users/{id}` | Get user details |
+| `PATCH` | `/api/admin/users/{id}/role` | Update user role |
+| `DELETE` | `/api/admin/users/{id}` | Delete user |
+| `POST` | `/api/admin/jobs` | Create job manually |
+| `PUT` | `/api/admin/jobs/{id}` | Update job |
+| `DELETE` | `/api/admin/jobs/{id}` | Delete job |
+| `GET` | `/api/admin/scraper/logs` | Get scraper history |
 
 ## 📄 License
 

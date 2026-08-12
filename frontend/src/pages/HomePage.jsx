@@ -101,27 +101,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Platform Statistics */}
-      <section className="mb-24 stagger-2">
-        <div className="grid grid-cols-4 gap-6 text-center max-md:grid-cols-2 max-sm:grid-cols-1">
-          <div className="p-6 bg-bg-secondary border border-border rounded-md">
-            <span className="text-4xl font-extrabold text-primary block mb-2">50k+</span>
-            <span className="text-xs text-text-secondary font-semibold uppercase tracking-widest">Resumes Analyzed</span>
-          </div>
-          <div className="p-6 bg-bg-secondary border border-border rounded-md">
-            <span className="text-4xl font-extrabold text-primary block mb-2">50+</span>
-            <span className="text-xs text-text-secondary font-semibold uppercase tracking-widest">Tech Roles Indexed</span>
-          </div>
-          <div className="p-6 bg-bg-secondary border border-border rounded-md">
-            <span className="text-4xl font-extrabold text-primary block mb-2">87%</span>
-            <span className="text-xs text-text-secondary font-semibold uppercase tracking-widest">Match Score Accuracy</span>
-          </div>
-          <div className="p-6 bg-bg-secondary border border-border rounded-md">
-            <span className="text-4xl font-extrabold text-primary block mb-2">12k+</span>
-            <span className="text-xs text-text-secondary font-semibold uppercase tracking-widest">Jobs Connected</span>
-          </div>
-        </div>
-      </section>
+      {/* Core Features Grid - Skip hardcoded stats */}
 
       {/* Core Features Grid */}
       <section className="mb-28 py-16 border-t border-border stagger-3">

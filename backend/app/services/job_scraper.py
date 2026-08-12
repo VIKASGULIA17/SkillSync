@@ -1,9 +1,6 @@
 """
 Job scraper service — FreshersWorld and Internshala.
-
-Migrated from web_scraping/web_scraping_jobs.py.  All Streamlit references
-have been removed; uses Python logging instead.  Category names now match
-the role names in skills_data.csv.
+Migrated from web_scraping/web_scraping_jobs.py.  
 """
 
 import logging

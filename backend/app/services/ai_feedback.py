@@ -32,7 +32,7 @@ def resume_feedback(
 
     if not api_key:
         return (
-            "⚠️ **API key not configured.**\n\n"
+            " **API key not configured.**\n\n"
             "Please set your Groq API key via the Settings page or the "
             "`GROQ_API_KEY` environment variable to enable AI feedback."
         )
@@ -41,13 +41,13 @@ def resume_feedback(
         from langchain_groq import ChatGroq
     except ImportError:
         return (
-            "⚠️ **langchain-groq is not installed.**\n\n"
+            " **langchain-groq is not installed.**\n\n"
             "Install it with `pip install langchain-groq` to enable AI feedback."
         )
 
     try:
         llm = ChatGroq(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            model="llama-3.3-70b-versatile",
             temperature=0.2,
             max_retries=2,
             api_key=api_key,
@@ -81,7 +81,7 @@ def resume_feedback(
     except Exception as exc:
         logger.exception("AI feedback generation failed")
         return (
-            f"⚠️ **AI Feedback unavailable.**\n\n"
+            f" **AI Feedback unavailable.**\n\n"
             f"An error occurred while generating feedback: `{exc}`\n\n"
             f"Please verify your API key is valid and try again."
         )
