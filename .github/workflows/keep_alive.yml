@@ -4,7 +4,7 @@ on:
   schedule:
     # Run every 10 minutes to prevent Render free-tier instance from sleeping
     - cron: '*/10 * * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+  workflow_dispatch: 
 
 jobs:
   ping-backend:
@@ -17,7 +17,7 @@ jobs:
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://skillsync-2ltw.onrender.com/)
           echo "Received HTTP Status Code: ${HTTP_STATUS}"
           if [ "${HTTP_STATUS}" -ge 200 ] && [ "${HTTP_STATUS}" -lt 400 ]; then
-            echo "✅ Backend is active and healthy!"
+            echo " Backend is active and healthy!"
           else
-            echo "⚠️ Backend ping returned status ${HTTP_STATUS}"
+            echo " Backend ping returned status ${HTTP_STATUS}"
           fi
