@@ -1,4 +1,7 @@
-const API_BASE = '/api';
+const envApiUrl = import.meta.env.VITE_API_BASE_URL || 'https://skillsync-2ltw.onrender.com';
+const normalizedBase = envApiUrl.replace(/\/+$/, '');
+const API_BASE = normalizedBase.endsWith('/api') ? normalizedBase : `${normalizedBase}/api`;
+
 
 async function request(url, options = {}) {
   const token = localStorage.getItem('token');

@@ -3,7 +3,7 @@ import JobFilters from '../components/JobFilters';
 import JobCard from '../components/JobCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBanner from '../components/ErrorBanner';
-import { getJobs, refreshJobs, getJobStatus } from '../api/client';
+import { getJobs, refreshJobs, getJobStatus, getJobApplications } from '../api/client';
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState([]);
@@ -16,16 +16,24 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Get tracked job IDs to filter them out from the job list
-  const [trackedJobIds, setTrackedJobIds] = useState(() => {
-    const saved = localStorage.getItem('trackedJobIds');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Tracked job identifiers loaded from backend applications table
+  const [trackedKeys, setTrackedKeys] = useState([]);
 
   useEffect(() => {
-    // Save trackedJobIds to localStorage when it changes
-    localStorage.setItem('trackedJobIds', JSON.stringify(trackedJobIds));
-  }, [trackedJobIds]);
+    loadTrackedApplications();
+  }, []);
+
+  const loadTrackedApplications = async () => {
+    try {
+      const apps = await getJobApplications();
+      if (Array.isArray(apps)) {
+        const keys = apps.map(app => `${app.title}_${app.company}`.toLowerCase());
+        setTrackedKeys(keys);
+      }
+    } catch (err) {
+      console.error('Failed to load tracked applications from backend:', err);
+    }
+  };
 
   const [stats, setStats] = useState({ totalCount: 0, categoriesCount: 0, companiesCount: 0 });
 
@@ -51,7 +59,9 @@ export default function JobsPage() {
     try {
       const data = await getJobs({ ...filters, page, per_page: perPage });
       // Filter out already tracked jobs from the job listings
-      const filteredJobs = (data.jobs || []).filter(job => !trackedJobIds.includes(job.id));
+      const filteredJobs = (data.jobs || []).filter(
+        job => !trackedKeys.includes(`${job.title}_${job.company}`.toLowerCase())
+      );
       setJobs(filteredJobs);
       setTotal(data.total || 0);
       setTotalPages(data.total_pages || 1);
@@ -107,17 +117,12 @@ export default function JobsPage() {
     }
   };
 
-  const handleJobTracked = (jobId) => {
-    // Add job ID to tracked list when a job is tracked
-    if (!trackedJobIds.includes(jobId)) {
-      setTrackedJobIds(prev => [...prev, jobId]);
-    }
+  const handleJobTracked = () => {
+    loadTrackedApplications();
   };
 
-  const handleJobUntracked = (jobId) => {
-    // Remove job ID from tracked list when a job is untracked
-    setTrackedJobIds(prev => prev.filter(id => id !== jobId));
-    // Reload jobs data to include the newly untracked job
+  const handleJobUntracked = () => {
+    loadTrackedApplications();
     loadJobsData();
   };
 
@@ -198,7 +203,7 @@ export default function JobsPage() {
               <JobCard
                 key={idx}
                 job={job}
-                isTracked={trackedJobIds.includes(job.id)}
+                isTracked={trackedKeys.includes(`${job.title}_${job.company}`.toLowerCase())}
                 onJobTracked={handleJobTracked}
                 onJobUntracked={handleJobUntracked}
               />

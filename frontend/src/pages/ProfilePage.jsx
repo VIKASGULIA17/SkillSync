@@ -5,8 +5,6 @@ import {
   getUserProfile,
   updatePersonalInfo,
   updateSkillSet,
-  getSavedJobs,
-  unsaveJob,
   getApiKeyStatus,
   setApiKey,
   analyzeResume,
@@ -43,9 +41,8 @@ export default function ProfilePage() {
   const [linkedin, setLinkedin] = useState('');
   const [portfolio, setPortfolio] = useState('');
 
-  // Stats & Saved Jobs
-  const [stats, setStats] = useState({ avgScore: 0, resumesUploaded: 0, savedJobsCount: 0 });
-  const [savedJobs, setSavedJobs] = useState([]);
+  // Stats
+  const [stats, setStats] = useState({ avgScore: 0, resumesUploaded: 0 });
 
   // Resume Upload State
   const [parsingResume, setParsingResume] = useState(false);
@@ -83,44 +80,10 @@ export default function ProfilePage() {
         }
         setSkills(Array.isArray(skillsList) ? skillsList : []);
 
-        // Load saved jobs from backend first
-        let savedJobsCount = 0;
-        try {
-          const savedData = await getSavedJobs();
-          console.log('Saved jobs data:', savedData); // Debug log
-          const jobs = (savedData || []).map(s => ({
-            id: s.id,
-            title: s.job.title,
-            company: s.job.company,
-            location: s.job.location,
-            category: s.job.category,
-            salary: s.job.salary,
-            url: s.job.link,
-          }));
-          setSavedJobs(jobs);
-          savedJobsCount = jobs.length;
-        } catch (savedErr) {
-          console.error('Failed to load saved jobs:', {
-            error: savedErr,
-            message: savedErr.message,
-            stack: savedErr.stack,
-            hasToken: !!localStorage.getItem('token')
-          });
-          setSavedJobs([]);
-        }
-
-        // Set stats with actual saved jobs count
         const avgScore = Math.round((profileData.match_score || 0) * 10);
-        console.log('Profile stats:', { // Debug log
-          avgScore,
-          resumesUploaded: profileData.resume_analysed || 0,
-          savedJobsCount
-        });
-
         setStats({
           avgScore: avgScore,
           resumesUploaded: profileData.resume_analysed || 0,
-          savedJobsCount: savedJobsCount
         });
 
         // Load API key status
@@ -252,18 +215,6 @@ export default function ProfilePage() {
     } catch (err) {
       setError(err.message || "Failed to remove skill.");
       setSkills(skills);
-    }
-  };
-
-  // Remove saved job
-  const handleRemoveJob = async (jobId) => {
-    try {
-      await unsaveJob(jobId);
-      const updatedJobs = savedJobs.filter(j => j.id !== jobId);
-      setSavedJobs(updatedJobs);
-      setStats(prev => ({ ...prev, savedJobsCount: updatedJobs.length }));
-    } catch (err) {
-      setError(err.message || 'Failed to remove saved job.');
     }
   };
 
@@ -450,7 +401,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Stats Quick-info Cards */}
-      <div className="grid grid-cols-3 gap-6 max-md:grid-cols-1 stagger-1">
+      <div className="grid grid-cols-2 gap-6 max-md:grid-cols-1 stagger-1">
         <div className="p-6 bg-bg-secondary border border-border rounded-md flex flex-col justify-between relative overflow-hidden group">
           <div className="absolute top-0 left-0 bottom-0 w-[3px] bg-primary group-hover:h-full transition-all" />
           <span className="text-xs text-text-secondary font-semibold uppercase tracking-wider mb-2">Average Match Score</span>
@@ -468,21 +419,12 @@ export default function ProfilePage() {
             <span className="text-xs text-text-secondary font-medium">Versions Saved</span>
           </div>
         </div>
-
-        <div className="p-6 bg-bg-secondary border border-border rounded-md flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 left-0 bottom-0 w-[3px] bg-warning group-hover:h-full transition-all" />
-          <span className="text-xs text-text-secondary font-semibold uppercase tracking-wider mb-2">Saved Openings</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-text-primary font-headings">{stats.savedJobsCount}</span>
-            <span className="text-xs text-text-secondary font-medium">Active Applications</span>
-          </div>
-        </div>
       </div>
 
       {/* Layout Split */}
       <div className="grid grid-cols-[2fr_1.2fr] gap-8 max-lg:grid-cols-1">
         
-        {/* Left Hand side: Form & Saved Jobs */}
+        {/* Left Hand side: Form */}
         <div className="flex flex-col gap-8">
           
           {/* Edit Profile Form */}
@@ -604,57 +546,6 @@ export default function ProfilePage() {
                 Save Profile Changes
               </button>
             </form>
-          </div>
-
-          {/* Saved Jobs Board List */}
-          <div className="p-8 bg-bg-secondary border border-border rounded-md stagger-3">
-            <div className="flex justify-between items-center border-b border-border pb-4 mb-6">
-              <h2 className="text-xl font-bold font-headings text-text-primary">
-                Saved Careers & Jobs
-              </h2>
-              <span className="badge badge-info">{savedJobs.length} Saved</span>
-            </div>
-
-            {savedJobs.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                {savedJobs.map((job) => (
-                  <div key={job.id} className="p-5 bg-bg-tertiary border border-border rounded-sm hover:border-primary/45 hover:shadow-lg transition-all duration-300 flex justify-between items-center max-sm:flex-col max-sm:items-start max-sm:gap-4">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-text-primary text-base m-0">{job.title}</h4>
-                        <span className="badge badge-success text-[10px] py-0.5">{job.category}</span>
-                      </div>
-                      <p className="text-xs text-text-secondary font-semibold m-0">{job.company} • <span className="font-normal text-text-tertiary">{job.location}</span></p>
-                      <p className="text-[11px] text-primary m-0 font-medium">{job.salary}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <a
-                        href={job.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-primary btn-sm no-underline"
-                      >
-                        Apply Now
-                      </a>
-                      <button
-                        onClick={() => handleRemoveJob(job.id)}
-                        className="p-2 text-error hover:bg-error-bg rounded-sm border border-transparent hover:border-error-border transition-colors cursor-pointer"
-                        title="Remove from saved jobs"
-                        aria-label="Remove job"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 text-center bg-bg-tertiary border border-dashed border-border rounded-sm text-text-secondary">
-                <span className="text-3xl block mb-2">💼</span>
-                <p className="text-sm m-0">You have no saved jobs. Head over to the Jobs Board to explore live matches.</p>
-              </div>
-            )}
           </div>
 
           {/* Settings: Groq API Key Configuration */}
