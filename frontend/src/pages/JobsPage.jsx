@@ -11,10 +11,21 @@ export default function JobsPage() {
   const [page, setPage] = useState(1);
   const [perPage] = useState(12);
   const [totalPages, setTotalPages] = useState(1);
-  
+
   const [filters, setFilters] = useState({ search: '', category: '', experience: '', platform: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Get tracked job IDs to filter them out from the job list
+  const [trackedJobIds, setTrackedJobIds] = useState(() => {
+    const saved = localStorage.getItem('trackedJobIds');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    // Save trackedJobIds to localStorage when it changes
+    localStorage.setItem('trackedJobIds', JSON.stringify(trackedJobIds));
+  }, [trackedJobIds]);
 
   const [stats, setStats] = useState({ totalCount: 0, categoriesCount: 0, companiesCount: 0 });
 
@@ -39,7 +50,9 @@ export default function JobsPage() {
     setError(null);
     try {
       const data = await getJobs({ ...filters, page, per_page: perPage });
-      setJobs(data.jobs || []);
+      // Filter out already tracked jobs from the job listings
+      const filteredJobs = (data.jobs || []).filter(job => !trackedJobIds.includes(job.id));
+      setJobs(filteredJobs);
       setTotal(data.total || 0);
       setTotalPages(data.total_pages || 1);
 
@@ -61,7 +74,7 @@ export default function JobsPage() {
     try {
       const status = await getJobStatus();
       setScrapingStatus(status);
-      
+
       if (!status.is_running && scrapingStatus.is_running) {
         loadJobsData();
       }
@@ -94,6 +107,20 @@ export default function JobsPage() {
     }
   };
 
+  const handleJobTracked = (jobId) => {
+    // Add job ID to tracked list when a job is tracked
+    if (!trackedJobIds.includes(jobId)) {
+      setTrackedJobIds(prev => [...prev, jobId]);
+    }
+  };
+
+  const handleJobUntracked = (jobId) => {
+    // Remove job ID from tracked list when a job is untracked
+    setTrackedJobIds(prev => prev.filter(id => id !== jobId));
+    // Reload jobs data to include the newly untracked job
+    loadJobsData();
+  };
+
   return (
     <div className="flex flex-col gap-6 page-wrapper mx-auto max-w-[1200px] w-full px-6 md:px-8">
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
@@ -110,8 +137,8 @@ export default function JobsPage() {
               Updated: {new Date(scrapingStatus.last_updated).toLocaleDateString()} {new Date(scrapingStatus.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-          
-          <button 
+
+          <button
             className={`btn btn-secondary btn-sm ${scrapingStatus.is_running ? 'opacity-70 cursor-not-allowed' : ''}`}
             onClick={handleRefresh}
             disabled={scrapingStatus.is_running}
@@ -130,7 +157,7 @@ export default function JobsPage() {
       {scrapingStatus.is_running && (
         <div className="p-4 bg-info/10 border border-info/20 rounded-sm mb-4 text-sm text-text-primary animate-fade-in">
           <p className="m-0">
-            🔄 Scrapers are active. Fetching and index compiling the latest job listings. 
+            🔄 Scrapers are active. Fetching and index compiling the latest job listings.
             Currently in database: <strong className="text-text-primary">{scrapingStatus.job_count}</strong> records.
           </p>
         </div>
@@ -168,26 +195,32 @@ export default function JobsPage() {
         <>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 mb-8">
             {jobs.map((job, idx) => (
-              <JobCard key={idx} job={job} />
+              <JobCard
+                key={idx}
+                job={job}
+                isTracked={trackedJobIds.includes(job.id)}
+                onJobTracked={handleJobTracked}
+                onJobUntracked={handleJobUntracked}
+              />
             ))}
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="mt-6 border-t border-border pt-6 flex justify-center items-center gap-4">
-              <button 
+              <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => handlePageChange(page - 1)}
                 disabled={page === 1}
               >
                 ◀ Previous
               </button>
-              
+
               <span className="text-sm text-text-secondary">
                 Page <strong className="text-text-primary">{page}</strong> of <strong className="text-text-primary">{totalPages}</strong>
               </span>
 
-              <button 
+              <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => handlePageChange(page + 1)}
                 disabled={page === totalPages}

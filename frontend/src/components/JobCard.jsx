@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { createJobApplication, getJobApplications } from '../api/client';
+import { useState, useEffect } from 'react';
+import { createJobApplication, getJobApplications, updateJobApplication, deleteJobApplication } from '../api/client';
 
 export default function JobCard({ job }) {
   const {
@@ -10,10 +10,35 @@ export default function JobCard({ job }) {
     experience,
     link,
     platform,
+    id,
   } = job;
 
   const [status, setStatus] = useState('');
   const [isTracking, setIsTracking] = useState(false);
+
+  // Check if this job is already tracked
+  useEffect(() => {
+    const checkIfTracked = async () => {
+      try {
+        const existingApps = await getJobApplications();
+        const isThisJobTracked = existingApps.some(
+          app => app.title === title && app.company === company
+        );
+        if (isThisJobTracked) {
+          // Find the status and set it
+          const trackedApp = existingApps.find(
+            app => app.title === title && app.company === company
+          );
+          if (trackedApp) {
+            setStatus(trackedApp.status);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check if job is tracked:', err);
+      }
+    };
+    checkIfTracked();
+  }, [title, company]);
 
   const handleStatusChange = async (newStatus) => {
     if (!newStatus) {
@@ -47,7 +72,13 @@ export default function JobCard({ job }) {
         status: newStatus,
       });
 
+      // Update local status to reflect the new tracking status
       setStatus(newStatus);
+
+      // Trigger a reload of job applications in the JobsPage to sync the UI
+      if (typeof window.refreshJobApplications === 'function') {
+        window.refreshJobApplications();
+      }
     } catch (err) {
       console.error('Failed to track job:', err);
       alert('Failed to track job. Please try again.');
