@@ -11,3 +11,4 @@ langchain-groq
 pydantic-settings
 python-multipart
 pyjwt==2.8.0
+email-validator
