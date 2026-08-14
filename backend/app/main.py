@@ -38,11 +38,47 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     On startup:
       1. Create database tables (if they don't exist).
-      2. Optionally trigger an initial scrape (controlled by SCRAPE_ON_STARTUP).
+      2. Ensure all users have UserProfile records.
+      3. Optionally trigger an initial scrape (controlled by SCRAPE_ON_STARTUP).
     """
     logger.info("SkillSync API starting up …")
     create_tables()
     logger.info("Database tables verified.")
+
+    # Ensure all users have UserProfile records
+    db = SessionLocal()
+    try:
+        from app.models import User, UserProfile
+
+        users = db.query(User).all()
+        profiles_created = 0
+        for user in users:
+            if not user.profile:
+                profile = UserProfile(
+                    user_id=user.id,
+                    target_role="",
+                    location="",
+                    description="New User of SkillSync",
+                    github="https://github.com",
+                    linkedin="https://linkedin.com",
+                    portfolio="https://portfolio.com",
+                    match_score=0.0,
+                    resume_analysed=0,
+                    skill_matrix=[]
+                )
+                db.add(profile)
+                profiles_created += 1
+
+        if profiles_created > 0:
+            db.commit()
+            logger.info(f"Created UserProfile records for {profiles_created} users.")
+        else:
+            logger.info("All users already have UserProfile records.")
+    except Exception as exc:
+        logger.error("UserProfile initialization failed: %s", exc)
+        db.rollback()
+    finally:
+        db.close()
 
     if settings.SCRAPE_ON_STARTUP:
         # Check whether we already have jobs — only scrape if the DB is empty

@@ -10,7 +10,7 @@ import {
 export default function TrackerPage() {
   const [applications, setApplications] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [activeTab, setActiveTab] = useState('wishlist');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,61 +21,12 @@ export default function TrackerPage() {
   const [newSalary, setNewSalary] = useState('');
   const [newLink, setNewLink] = useState('');
 
-  const columns = [
-    {
-      id: 'wishlist',
-      title: 'Wishlist',
-      color: 'border-t-[#a855f7]/60',
-      icon: (
-        <svg className="w-3.5 h-3.5 text-[#a855f7]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-        </svg>
-      )
-    },
-    {
-      id: 'applied',
-      title: 'Applied',
-      color: 'border-t-[#3b82f6]/60',
-      icon: (
-        <svg className="w-3.5 h-3.5 text-[#3b82f6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <line x1="22" y1="2" x2="11" y2="13" />
-          <polygon points="22 2 15 22 11 13 2 9 22 2" />
-        </svg>
-      )
-    },
-    {
-      id: 'interviewing',
-      title: 'Interview',
-      color: 'border-t-[#eab308]/60',
-      icon: (
-        <svg className="w-3.5 h-3.5 text-[#eab308]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      )
-    },
-    {
-      id: 'offered',
-      title: 'Offered',
-      color: 'border-t-[#22c55e]/60',
-      icon: (
-        <svg className="w-3.5 h-3.5 text-[#22c55e]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
-      )
-    },
-    {
-      id: 'rejected',
-      title: 'Archive',
-      color: 'border-t-[#ef4444]/60',
-      icon: (
-        <svg className="w-3.5 h-3.5 text-[#ef4444]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="15" y1="9" x2="9" y2="15" />
-          <line x1="9" y1="9" x2="15" y2="15" />
-        </svg>
-      )
-    }
+  const statusMetrics = [
+    { id: 'wishlist', label: 'Wishlist', icon: '📌', color: 'border-[#a855f7]' },
+    { id: 'applied', label: 'Applied', icon: '✉️', color: 'border-[#3b82f6]' },
+    { id: 'interviewing', label: 'Interview', icon: '💬', color: 'border-[#eab308]' },
+    { id: 'offered', label: 'Offered', icon: '🎉', color: 'border-[#22c55e]' },
+    { id: 'rejected', label: 'Archive', icon: '📦', color: 'border-[#ef4444]' }
   ];
 
   useEffect(() => {
@@ -116,20 +67,6 @@ export default function TrackerPage() {
     }
   };
 
-  const handleDragStart = (e, id) => {
-    e.dataTransfer.setData('text/plain', id);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e, targetStatus) => {
-    e.preventDefault();
-    const id = parseInt(e.dataTransfer.getData('text/plain'));
-    moveApp(id, targetStatus);
-  };
-
   const handleAddApp = async (e) => {
     e.preventDefault();
     if (!newTitle.trim() || !newCompany.trim()) {
@@ -162,6 +99,14 @@ export default function TrackerPage() {
     }
   };
 
+  const getCountForStatus = (status) => {
+    return applications.filter(app => app.status === status).length;
+  };
+
+  const filteredApps = filterStatus === 'all'
+    ? applications
+    : applications.filter(app => app.status === filterStatus);
+
   // Monogram color builder based on company name
   const getInitialsColor = (str) => {
     let hash = 0;
@@ -183,9 +128,7 @@ export default function TrackerPage() {
   const renderCard = (app) => (
     <div
       key={app.id}
-      className="p-4 rounded-lg bg-gradient-to-br from-bg-secondary to-bg-tertiary border border-border hover:border-primary/60 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 flex flex-col gap-3 relative group cursor-grab active:cursor-grabbing hover:-translate-y-1"
-      draggable
-      onDragStart={(e) => handleDragStart(e, app.id)}
+      className="p-4 rounded-lg bg-gradient-to-br from-bg-secondary to-bg-tertiary border border-border hover:border-primary/60 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 flex flex-col gap-3 relative group hover:-translate-y-1"
     >
       {/* Delete button - top right corner */}
       <button
@@ -278,14 +221,14 @@ export default function TrackerPage() {
         <div className="flex flex-col gap-1.5">
           <span className="text-[10px] uppercase tracking-widest font-bold text-primary font-mono">Workflow Management</span>
           <h1 className="text-3xl font-extrabold font-headings text-text-primary tracking-tight m-0 leading-none">Application Tracker</h1>
-          <p className="text-text-secondary text-sm m-0 max-w-[60ch]">Organise your job search funnel. Drag cards or select options to update statuses.</p>
+          <p className="text-text-secondary text-sm m-0 max-w-[60ch]">Track and organize your job applications with our intuitive dashboard.</p>
         </div>
-        
-        <button 
+
+        <button
           className="btn btn-secondary text-sm font-sans flex items-center gap-2 border border-border hover:border-primary transition-all duration-300 max-md:w-full"
           onClick={() => setShowAddForm(!showAddForm)}
         >
-          {showAddForm ? 'Close Funnel Form' : '+ Add Custom Application'}
+          {showAddForm ? 'Close Form' : '+ Add Application'}
         </button>
       </div>
 
@@ -296,10 +239,10 @@ export default function TrackerPage() {
           <div className="grid grid-cols-2 gap-6 max-sm:grid-cols-1">
             <div className="flex flex-col gap-2">
               <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider font-mono">Job Title *</label>
-              <input 
-                type="text" 
-                placeholder="e.g. Lead Software Engineer" 
-                value={newTitle} 
+              <input
+                type="text"
+                placeholder="e.g. Lead Software Engineer"
+                value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 required
                 className="w-full p-2.5 bg-bg-input border border-border rounded-sm text-sm text-text-primary focus:border-primary outline-none transition-colors"
@@ -307,10 +250,10 @@ export default function TrackerPage() {
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider font-mono">Company *</label>
-              <input 
-                type="text" 
-                placeholder="e.g. Anthropic" 
-                value={newCompany} 
+              <input
+                type="text"
+                placeholder="e.g. Anthropic"
+                value={newCompany}
                 onChange={(e) => setNewCompany(e.target.value)}
                 required
                 className="w-full p-2.5 bg-bg-input border border-border rounded-sm text-sm text-text-primary focus:border-primary outline-none transition-colors"
@@ -318,30 +261,30 @@ export default function TrackerPage() {
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider font-mono">Location</label>
-              <input 
-                type="text" 
-                placeholder="e.g. London / Remote" 
-                value={newLocation} 
+              <input
+                type="text"
+                placeholder="e.g. London / Remote"
+                value={newLocation}
                 onChange={(e) => setNewLocation(e.target.value)}
                 className="w-full p-2.5 bg-bg-input border border-border rounded-sm text-sm text-text-primary focus:border-primary outline-none transition-colors"
               />
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider font-mono">Compensation / Salary</label>
-              <input 
-                type="text" 
-                placeholder="e.g. £90,000 /year" 
-                value={newSalary} 
+              <input
+                type="text"
+                placeholder="e.g. £90,000 /year"
+                value={newSalary}
                 onChange={(e) => setNewSalary(e.target.value)}
                 className="w-full p-2.5 bg-bg-input border border-border rounded-sm text-sm text-text-primary focus:border-primary outline-none transition-colors"
               />
             </div>
             <div className="flex flex-col gap-2 col-span-2 max-sm:col-span-1">
               <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider font-mono">Listing Link / URL</label>
-              <input 
-                type="url" 
-                placeholder="https://..." 
-                value={newLink} 
+              <input
+                type="url"
+                placeholder="https://..."
+                value={newLink}
                 onChange={(e) => setNewLink(e.target.value)}
                 className="w-full p-2.5 bg-bg-input border border-border rounded-sm text-sm text-text-primary focus:border-primary outline-none transition-colors"
               />
@@ -351,94 +294,78 @@ export default function TrackerPage() {
         </form>
       )}
 
-      {/* Mobile/Tablet Tab Selector: Shows only on width < 1024px */}
-      <div className="hidden max-lg:flex justify-between items-center bg-bg-secondary border border-border p-1.5 rounded-md overflow-x-auto gap-1">
-        {columns.map((col) => {
-          const colApps = applications.filter(app => app.status === col.id);
-          const isActive = activeTab === col.id;
+      {/* Statistics Metrics Cards */}
+      <div className="grid grid-cols-5 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1">
+        {statusMetrics.map(metric => {
+          const count = getCountForStatus(metric.id);
           return (
-            <button
-              key={col.id}
-              onClick={() => setActiveTab(col.id)}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-sm text-xs font-semibold whitespace-nowrap grow justify-center transition-all cursor-pointer ${
-                isActive 
-                  ? 'bg-bg-tertiary text-text-primary border-b-2 border-primary' 
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50'
-              }`}
+            <div
+              key={metric.id}
+              className={`p-6 bg-bg-secondary border-t-4 ${metric.color} border border-border rounded-md flex flex-col items-center justify-center gap-2 hover:shadow-lg transition-shadow cursor-pointer`}
+              onClick={() => setFilterStatus(metric.id)}
             >
-              {col.icon}
-              <span className="font-mono uppercase text-[10px] tracking-wider">{col.title}</span>
-              <span className="text-[10px] bg-white/5 text-text-secondary px-1.5 py-0.2 rounded-full font-mono">{colApps.length}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Desktop Kanban Board: Shows on width >= 1024px */}
-      <div className="grid grid-cols-5 gap-5 items-start min-h-[520px] pb-6 max-lg:hidden">
-        {columns.map((col) => {
-          const colApps = applications.filter(app => app.status === col.id);
-          
-          return (
-            <div 
-              key={col.id} 
-              className={`min-h-[480px] p-4 rounded-md bg-bg-secondary border border-border flex flex-col gap-4 border-t-4 ${col.color}`}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, col.id)}
-            >
-              <div className="flex justify-between items-center w-full border-b border-border/40 pb-2">
-                <div className="flex items-center gap-2">
-                  {col.icon}
-                  <h3 className="text-xs font-bold text-text-primary tracking-wider uppercase font-mono">{col.title}</h3>
-                </div>
-                <span className="text-[10px] font-bold bg-bg-tertiary text-text-secondary px-2.5 py-0.5 rounded-full font-mono">{colApps.length}</span>
-              </div>
-
-              <div className="flex flex-col gap-3 grow">
-                {colApps.length > 0 ? (
-                  colApps.map(renderCard)
-                ) : (
-                  <div className="flex items-center justify-center grow text-[10px] font-mono tracking-wider text-text-tertiary border border-dashed border-white/5 rounded-md min-h-[100px]">
-                    Drag cards here
-                  </div>
-                )}
-              </div>
+              <span className="text-3xl">{metric.icon}</span>
+              <span className="text-3xl font-bold text-text-primary">{count}</span>
+              <span className="text-xs text-text-secondary font-semibold uppercase tracking-wider text-center">{metric.label}</span>
             </div>
           );
         })}
       </div>
 
-      {/* Mobile/Tablet Single Column: Shows only on width < 1024px */}
-      <div className="lg:hidden flex flex-col gap-4 min-h-[400px]">
-        {columns.filter(col => col.id === activeTab).map((col) => {
-          const colApps = applications.filter(app => app.status === col.id);
-          
-          return (
-            <div 
-              key={col.id} 
-              className={`p-5 rounded-md bg-bg-secondary border border-border flex flex-col gap-4 border-t-4 w-full ${col.color}`}
-            >
-              <div className="flex justify-between items-center w-full border-b border-border/40 pb-2">
-                <div className="flex items-center gap-2">
-                  {col.icon}
-                  <h3 className="text-xs font-bold text-text-primary tracking-wider uppercase font-mono">{col.title}</h3>
-                </div>
-                <span className="text-[10px] font-bold bg-bg-tertiary text-text-secondary px-2.5 py-0.5 rounded-full font-mono">{colApps.length}</span>
-              </div>
+      {/* Filter Bar */}
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+        <button
+          onClick={() => setFilterStatus('all')}
+          className={`px-4 py-2 rounded-md border transition-all whitespace-nowrap text-sm font-semibold ${
+            filterStatus === 'all'
+              ? 'bg-primary text-white border-primary'
+              : 'bg-bg-secondary border-border text-text-secondary hover:border-primary hover:text-text-primary'
+          }`}
+        >
+          All Applications
+          <span className="ml-2 text-xs opacity-70">({applications.length})</span>
+        </button>
 
-              <div className="flex flex-col gap-3 w-full">
-                {colApps.length > 0 ? (
-                  colApps.map(renderCard)
-                ) : (
-                  <div className="flex items-center justify-center py-16 text-[11px] font-mono tracking-wider text-text-tertiary border border-dashed border-white/5 rounded-md">
-                    No records in this stage.
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {statusMetrics.map(status => (
+          <button
+            key={status.id}
+            onClick={() => setFilterStatus(status.id)}
+            className={`px-4 py-2 rounded-md border transition-all whitespace-nowrap text-sm font-semibold ${
+              filterStatus === status.id
+                ? 'bg-primary text-white border-primary'
+                : 'bg-bg-secondary border-border text-text-secondary hover:border-primary hover:text-text-primary'
+            }`}
+          >
+            {status.icon} {status.label}
+            <span className="ml-2 text-xs opacity-70">({getCountForStatus(status.id)})</span>
+          </button>
+        ))}
       </div>
+
+      {/* Job Cards Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-text-secondary text-sm">Loading applications...</span>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
+          {filteredApps.length > 0 ? (
+            filteredApps.map(app => renderCard(app))
+          ) : (
+            <div className="col-span-full p-12 text-center bg-bg-secondary border border-dashed border-border rounded-md">
+              <span className="text-4xl block mb-4">📋</span>
+              <p className="text-text-secondary text-sm m-0">
+                {filterStatus === 'all'
+                  ? 'No applications yet. Click "+ Add Application" to get started.'
+                  : `No applications in ${statusMetrics.find(s => s.id === filterStatus)?.label || 'this'} category.`}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

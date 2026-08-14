@@ -100,7 +100,12 @@ export default function ProfilePage() {
           setSavedJobs(jobs);
           savedJobsCount = jobs.length;
         } catch (savedErr) {
-          console.error('Failed to load saved jobs:', savedErr);
+          console.error('Failed to load saved jobs:', {
+            error: savedErr,
+            message: savedErr.message,
+            stack: savedErr.stack,
+            hasToken: !!localStorage.getItem('token')
+          });
           setSavedJobs([]);
         }
 

@@ -159,9 +159,9 @@ class ProfileResponse(BaseModel):
     location: str
     description: str
 
-    github: AnyUrl
-    linkedin: AnyUrl
-    portfolio: AnyUrl
+    github: Optional[str] = None
+    linkedin: Optional[str] = None
+    portfolio: Optional[str] = None
 
     match_score: float
     resume_analysed: int
@@ -178,9 +178,9 @@ class ProfileInfoChange(BaseModel):
     location: Optional[str] = None
     description: Optional[str] = None
 
-    github: Optional[AnyUrl] = None
-    linkedin: Optional[AnyUrl] = None
-    portfolio: Optional[AnyUrl] = None
+    github: Optional[str] = None
+    linkedin: Optional[str] = None
+    portfolio: Optional[str] = None
 
 
 class ProfileSkillsMatrixChange(BaseModel):
