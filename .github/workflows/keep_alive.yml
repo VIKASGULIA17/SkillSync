@@ -14,7 +14,7 @@ jobs:
       - name: Ping SkillSync API
         run: |
           echo "Pinging SkillSync backend at https://skillsync-2ltw.onrender.com/ ..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://skillsync-2ltw.onrender.com/)
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 120 https://skillsync-2ltw.onrender.com/)
           echo "Received HTTP Status Code: ${HTTP_STATUS}"
           if [ "${HTTP_STATUS}" -ge 200 ] && [ "${HTTP_STATUS}" -lt 400 ]; then
             echo " Backend is active and healthy!"
